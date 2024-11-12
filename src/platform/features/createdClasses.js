@@ -6,11 +6,13 @@ const initialState = {
 };
 
 const createdClassesSlice = createSlice({
-  name: 'joinedClasses',
+
+  name: 'createdClasses',
   initialState,
   reducers: {
     setCreatedClasses: (state, action) => {
-      state.joinedClasses = action.payload;
+      state.createdClasses = action.payload;
+
     },
   },
 });
