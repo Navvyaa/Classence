@@ -18,9 +18,9 @@ const toggleStateSlice = createSlice({
         setIsEnrolled(state, action) {
             state.isEnrolled = action.payload;
             
-            if (typeof window !== 'undefined') {
+            
                 sessionStorage.setItem("isEnrolled", JSON.stringify(state.isEnrolled));
-            }
+            
         }
     }
 });
