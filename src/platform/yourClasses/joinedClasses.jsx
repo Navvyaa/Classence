@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import PeopleIcon from '@mui/icons-material/People';
@@ -8,9 +8,9 @@ import card from '../assets/card1.svg';
 import axios from 'axios';
 import { setJoinedClasses } from '../features/joinedClasses';
 import { setCreatedClasses } from '../features/createdClasses';
-
 import { setIsEnrolled } from '../features/toggleSlice';
-
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const JoinedClasses = () => {
   const navigate = useNavigate();
@@ -28,14 +28,14 @@ const JoinedClasses = () => {
   };
 
   const handleDeleteClass = async (classCode, index) => {
-    const token = sessionStorage.getItem("authToken") || localStorage.getItem("authToken");
+    const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
 
     setDeletedClassIndex(index);
 
     try {
       const headers = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       };
 
       const response = await axios.post(
@@ -45,28 +45,30 @@ const JoinedClasses = () => {
       );
 
       if (response.status === 200) {
-        setTimeout(() => {
-          dispatch(setCreatedClasses(createdClasses.filter(classInfo => classInfo.code !== classCode)));
-          setDeletedClassIndex(null);
-        }, 500); 
+        dispatch(setCreatedClasses(createdClasses.filter((classInfo) => classInfo.code !== classCode)));
+        toast.success('Class deleted successfully!', {
+          className: 'custom-toastS',
+          hideProgressBar: true,
+          autoClose: 3000,
+        });
+        setDeletedClassIndex(null);
       }
     } catch (error) {
       console.log(error);
     }
   };
 
-
   useEffect(() => {
     const controller = new AbortController();
     const { signal } = controller;
 
     const fetchData = async () => {
-      const token = sessionStorage.getItem("authToken");
+      const token = sessionStorage.getItem('authToken');
 
       try {
         const headers = {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         };
 
         const response = await axios.post(
@@ -76,20 +78,15 @@ const JoinedClasses = () => {
         );
 
         if (response.data.success) {
-          
           const { joinedClasses, createdClasses } = response.data.user;
           dispatch(setJoinedClasses(joinedClasses));
           dispatch(setCreatedClasses(createdClasses));
-          
-
 
           if (createdClasses.length === 0 && joinedClasses.length === 0) {
             navigate('/dashsignup');
-          }else if(createdClasses.length>0&& joinedClasses.length===0){
+          } else if (createdClasses.length > 0 && joinedClasses.length === 0) {
             dispatch(setIsEnrolled(false));
-          }else if(createdClasses.length===0&& joinedClasses.length>0){
-            dispatch(setIsEnrolled(true));
-          }else{
+          } else {
             dispatch(setIsEnrolled(true));
           }
         }
@@ -118,50 +115,72 @@ const JoinedClasses = () => {
 
       <div className="flex flex-wrap gap-6">
         {isEnrolled
-          ? (joinedClasses && joinedClasses.length > 0
-              ? joinedClasses.map((classInfo, index) => (
-                  <ClassCard
-                    key={index}
-                    {...classInfo}
-                    index={index}
-                    activePopupIndex={activePopupIndex}
-                    onPopupToggle={handlePopupToggle}
-                  />
-                ))
-              : <div>No joined classes available.</div>)
-          : (createdClasses && createdClasses.length > 0
-
-              ? createdClasses.map((classInfo, index) => (
-                  <ClassCard
-                    key={index}
-                    {...classInfo}
-                    index={index}
-                    activePopupIndex={activePopupIndex}
-                    onPopupToggle={handlePopupToggle}
-                    onDelete={() => handleDeleteClass(classInfo.code, index)}
-                    isDeleting={deletedClassIndex === index}
-                  />
-                ))
-              : <div>No created classes available.</div>)
-
-        }
+          ? joinedClasses?.map((classInfo, index) => (
+              <ClassCard
+                key={index}
+                {...classInfo}
+                index={index}
+                activePopupIndex={activePopupIndex}
+                onPopupToggle={handlePopupToggle}
+                navigate={navigate}
+              />
+            ))
+          : createdClasses?.map((classInfo, index) => (
+              <ClassCard
+                key={index}
+                {...classInfo}
+                index={index}
+                activePopupIndex={activePopupIndex}
+                onPopupToggle={handlePopupToggle}
+                onDelete={() => handleDeleteClass(classInfo.code, index)}
+                isDeleting={deletedClassIndex === index}
+                navigate={navigate}
+              />
+            ))}
       </div>
     </div>
   );
 };
 
-const ClassCard = ({ name, noOfStudents, teacher, index, onDelete, activePopupIndex, onPopupToggle, isDeleting }) => {
+const ClassCard = ({
+  name,
+  noOfStudents,
+  teacher,
+  code,
+  index,
+  onDelete,
+  activePopupIndex,
+  onPopupToggle,
+  isDeleting,
+  navigate,
+}) => {
   const isEnrolled = useSelector((state) => state.toggleState.isEnrolled);
+  const popupRef = useRef(null);
 
-  const handleDelete = () => {
-    onPopupToggle(index); // Close the popup when delete is triggered
-    onDelete(); // Delete the class
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (popupRef.current && !popupRef.current.contains(event.target)) {
+        onPopupToggle(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [onPopupToggle]);
+
+  const handleCardClick = () => {
+    if (activePopupIndex !== index) {
+      navigate(`/announcement`);
+    }
   };
 
   return (
     <div
       className={`bg-white rounded-lg p-3 flex flex-col justify-between border border-teal-200 w-[240px] h-[200px] fade-in-up mt-7 relative ${isDeleting ? 'fade-out' : ''}`}
       style={{ animationDelay: `${index * 0.2}s` }}
+      onClick={handleCardClick}
     >
       <div className="bg-[#919F9E] rounded-lg relative flex justify-between items-start h-fit p-5">
         <img
@@ -171,18 +190,22 @@ const ClassCard = ({ name, noOfStudents, teacher, index, onDelete, activePopupIn
         />
         <MoreHorizIcon
           className="absolute top-2 right-2 text-white cursor-pointer"
-          onClick={() => onPopupToggle(index)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onPopupToggle(index);
+          }}
         />
         {activePopupIndex === index && !isEnrolled && (
           <PopupMenu
             onClose={() => onPopupToggle(null)}
-            onDelete={handleDelete}
+            onDelete={onDelete}
+            ref={popupRef}
           />
         )}
       </div>
 
       <div className="mt-2">
-        <h3 className="text-2xl ">{name}</h3>
+        <h3 className="text-2xl">{name}</h3>
         <div className="flex items-center gap-2 mt-1 text-gray-600">
           <PeopleIcon fontSize="small" />
           <span>{noOfStudents}</span>
@@ -193,17 +216,14 @@ const ClassCard = ({ name, noOfStudents, teacher, index, onDelete, activePopupIn
   );
 };
 
-const PopupMenu = ({ onClose, onDelete }) => (
-  <div className="absolute right-0 top-8 bg-white border rounded-lg shadow-lg w-40 z-10">
+const PopupMenu = React.forwardRef(({ onClose, onDelete }, ref) => (
+  <div ref={ref} className="popup absolute right-0 top-8 bg-white border rounded-lg shadow-lg w-40 z-10">
     <ul>
-      <li
-        className="p-2 hover:bg-gray-100 cursor-pointer"
-        onClick={onDelete}
-      >
+      <li className="p-2 hover:bg-gray-100 cursor-pointer" onClick={onDelete}>
         Delete Class
       </li>
     </ul>
   </div>
-);
+));
 
 export default JoinedClasses;
